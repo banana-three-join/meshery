@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useNotificationHandlers } from '../../utils/hooks/useNotification';
 import { ResourcesConfig } from './resources/config';
@@ -10,7 +10,6 @@ import MesheryIcon from './images/meshery-icon';
 import { TabPanel } from './tabpanel';
 import { iconLarge } from '../../css/icons.styles';
 import { useWindowDimensions } from '@/utils/dimension';
-import { useState } from 'react';
 import {
   Tab,
   Tabs,
@@ -123,18 +122,29 @@ const Dashboard = () => {
   const cols = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 };
 
   const isWidgetAlreadyAdded = (key, layout, breakpoint) => {
-    return Boolean(layout[breakpoint].find((item) => item.i == key));
+    if (!layout || !layout[breakpoint]) return false;
+
+    return layout[breakpoint].some((item) => item.i === key);
   };
 
   const getWidgetsAvailableToBeAdded = (layout, breakpoint) => {
     return Object.entries(WIDGETS)
-      .map(([key, value]) => ({ key, ...value }))
-      .filter(
-        (widget) => widget?.isEnabled?.() && !isWidgetAlreadyAdded(widget.key, layout, breakpoint),
-      );
+      .filter(([key, v]) => !isWidgetAlreadyAdded(key, layout, breakpoint) && v?.isEnabled?.())
+      .map(([key, v]) => ({ key, ...v }));
   };
+
+  const widgetsToRenderForLayout = (layout, breakpoint) => {
+    return layout[breakpoint]
+      .filter(({ i }) => WIDGETS[i]?.isEnabled?.())
+      .map(({ i }) => ({ key: i, ...WIDGETS[i] }));
+  };
+
   const orgDashboardLayout = getCurrentDashboardLayoutFromOrgPrefs(userData?.dashboardPreferences);
   const [dashboardLayout, setDashboardLayout] = useState(orgDashboardLayout);
+
+  useEffect(() => {
+    setDashboardLayout(orgDashboardLayout);
+  }, [orgDashboardLayout]);
 
   const {
     showModal: showUnsavedModal,
@@ -186,6 +196,16 @@ const Dashboard = () => {
     };
     setDashboardLayout(updatedLayouts);
   };
+
+  const removeWidget = (widgetId) => {
+    setDashboardLayout((currentLayouts) => ({
+      ...currentLayouts,
+      [currentBreakPoint]: (currentLayouts[currentBreakPoint] || []).filter(
+        (w) => w.i !== widgetId,
+      ),
+    }));
+  };
+
   const { handleError, handleSuccess } = useNotificationHandlers();
 
   const updateLayout = async (dashboardLayout) => {
@@ -201,6 +221,7 @@ const Dashboard = () => {
   const toggleEditMode = () => {
     setIsEditMode(!isEditMode);
   };
+
   const cancelEditing = () => {
     setIsEditMode(false);
     setDashboardLayout(orgDashboardLayout);
@@ -214,6 +235,7 @@ const Dashboard = () => {
     setDashboardLayout(defaultLayout);
     updateLayout(defaultLayout);
   };
+
   const LayoutActions = {
     START_EDIT: {
       label: 'Edit',
@@ -266,37 +288,11 @@ const Dashboard = () => {
     .map(([key, layoutAction]) => ({ key, ...layoutAction }));
 
   const onBreakpointChange = (breakpoint) => {
-    if (!isEditMode) {
-      return;
-    }
     setCurrentBreakpoint(breakpoint);
   };
-  useEffect(() => {
-    setDashboardLayout(orgDashboardLayout);
-  }, [orgDashboardLayout]);
 
   const onLayoutChange = (layout, layouts) => {
-    if (!isEditMode) {
-      return;
-    }
     setDashboardLayout(layouts);
-  };
-
-  const widgetsToRenderForLayout = (layout, breakpoint) => {
-    return layout[breakpoint]
-      .map((layoutItem) => ({
-        key: layoutItem.i,
-        ...(WIDGETS[layoutItem.i] || {}), // old widgets might still be in the layout and now no longer available
-      }))
-      .filter((widget) => widget?.isEnabled?.());
-  };
-
-  const removeWidget = (key) => {
-    setDashboardLayout((currentLayouts) => {
-      const updatedLayout = (currentLayouts[currentBreakPoint] || []).filter((w) => w.i !== key);
-      const updatedLayouts = _.set(currentLayouts, currentBreakPoint, updatedLayout);
-      return { ...updatedLayouts };
-    });
   };
 
   return (
