@@ -134,7 +134,7 @@ const Dashboard = () => {
   };
 
   const widgetsToRenderForLayout = (layout, breakpoint) => {
-    return layout[breakpoint]
+    return (layout?.[breakpoint] || [])
       .filter(({ i }) => WIDGETS[i]?.isEnabled?.())
       .map(({ i }) => ({ key: i, ...WIDGETS[i] }));
   };
@@ -187,14 +187,14 @@ const Dashboard = () => {
       y: 10,
       ...widget.defaultSizing,
     };
-    const updatedLayouts = {
-      lg: [...dashboardLayout.lg, newComponent],
-      md: [...dashboardLayout.md, newComponent],
-      sm: [...dashboardLayout.sm, newComponent],
-      xs: [...dashboardLayout.xs, newComponent],
-      xxs: [...dashboardLayout.xxs, newComponent],
-    };
-    setDashboardLayout(updatedLayouts);
+
+    setDashboardLayout((prevLayouts) => ({
+      lg: [...(prevLayouts?.lg || []), newComponent],
+      md: [...(prevLayouts?.md || []), newComponent],
+      sm: [...(prevLayouts?.sm || []), newComponent],
+      xs: [...(prevLayouts?.xs || []), newComponent],
+      xxs: [...(prevLayouts?.xxs || []), newComponent],
+    }));
   };
 
   const removeWidget = (widgetId) => {
